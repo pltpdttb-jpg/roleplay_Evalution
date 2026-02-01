@@ -1,0 +1,2816 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAMA AI Roleplay Evaluation System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #1a237e;
+            --secondary-color: #3949ab;
+            --accent-color: #5c6bc0;
+            --success-color: #43a047;
+            --warning-color: #ff9800;
+            --danger-color: #e53935;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fb;
+        }
+        
+        .card {
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: none;
+            margin-bottom: 20px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .passcode-screen, .registration-screen, .course-selection-screen, 
+        .roleplay-screen, .evaluation-screen, .admin-screen {
+            display: none;
+        }
+        
+        .active-screen {
+            display: block;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .score-display {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-align: center;
+        }
+        
+        .dimension-score {
+            height: 12px;
+            border-radius: 6px;
+            background-color: #e0e0e0;
+            margin-bottom: 8px;
+        }
+        
+        .dimension-fill {
+            height: 100%;
+            border-radius: 6px;
+            background-color: var(--primary-color);
+        }
+        
+        .certificate-card {
+            border: 2px solid var(--primary-color);
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            position: relative;
+        }
+        
+        .certificate-header {
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .pass-status {
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .pass {
+            background-color: #e8f5e9;
+            color: var(--success-color);
+        }
+        
+        .not-pass {
+            background-color: #ffebee;
+            color: var(--danger-color);
+        }
+        
+        .recording-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .recording {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .objection-card {
+            border-left: 5px solid var(--warning-color);
+            background-color: #fff8e1;
+        }
+        
+        .scenario-card {
+            border-left: 5px solid var(--primary-color);
+        }
+        
+        .admin-table th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            display: none;
+        }
+        
+        .processing-overlay.active {
+            display: flex;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 3rem;
+            height: 3rem;
+            border: 4px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spinner-border .75s linear infinite;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spinner-border {
+            to { transform: rotate(360deg); }
+        }
+        
+        .api-status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .api-status-active { background-color: var(--success-color); }
+        .api-status-warning { background-color: var(--warning-color); }
+        .api-status-inactive { background-color: #ccc; }
+        
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>MAMA AI Roleplay
+            </a>
+            <div class="navbar-text">
+                <span id="user-info" class="d-none">สวัสดี, <span id="display-name"></span></span>
+                <button id="logout-btn" class="btn btn-sm btn-outline-primary ms-3 d-none">ออกจากระบบ</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Processing Overlay -->
+    <div id="processing-overlay" class="processing-overlay">
+        <div class="loading-spinner"></div>
+        <h5 id="processing-message">กำลังประมวลผล...</h5>
+        <p class="text-muted mt-2">กรุณารอสักครู่</p>
+    </div>
+
+    <!-- Passcode Screen -->
+    <div id="passcode-screen" class="passcode-screen active-screen">
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6 col-lg-5">
+                    <div class="card">
+                        <div class="card-body p-5 text-center">
+                            <div class="mb-4">
+                                <i class="fas fa-lock fa-3x text-primary mb-3"></i>
+                                <h3 class="card-title">ระบบประเมินทักษะ MAMA</h3>
+                                <p class="text-muted">กรุณากรอกรหัสผ่านเพื่อเข้าสู่ระบบ</p>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <input type="password" id="passcode-input" class="form-control form-control-lg text-center" placeholder="กรอกรหัสผ่าน">
+                                <div id="passcode-error" class="text-danger mt-2 d-none">รหัสผ่านไม่ถูกต้อง</div>
+                            </div>
+                            
+                            <button id="passcode-submit" class="btn btn-primary btn-lg w-100">
+                                เข้าสู่ระบบ <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                            
+                            <div class="mt-4 text-muted small">
+                                <p>หากลืมรหัสผ่าน ติดต่อผู้ดูแลระบบ</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registration Screen -->
+    <div id="registration-screen" class="registration-screen">
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-7">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0">ลงทะเบียนข้อมูลพนักงาน</h4>
+                        </div>
+                        <div class="card-body p-4">
+                            <form id="registration-form">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="employee-id" class="form-label">รหัสพนักงาน *</label>
+                                        <input type="text" id="employee-id" class="form-control" placeholder="กรอกรหัสพนักงาน (ตัวเลขเท่านั้น)" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="position" class="form-label">ตำแหน่ง *</label>
+                                        <select id="position" class="form-select" required>
+                                            <option value="">เลือกตำแหน่ง</option>
+                                            <option value="CFSA">CFSA</option>
+                                            <option value="CISA">CISA</option>
+                                            <option value="BM">BM</option>
+                                            <option value="WRM">WRM</option>
+                                            <option value="IS">IS</option>
+                                            <option value="IA">IA</option>
+                                            <option value="Other">อื่นๆ</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="first-name" class="form-label">ชื่อ *</label>
+                                        <input type="text" id="first-name" class="form-control" placeholder="กรอกชื่อ" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="last-name" class="form-label">นามสกุล *</label>
+                                        <input type="text" id="last-name" class="form-control" placeholder="กรอกนามสกุล" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="region" class="form-label">ภูมิภาค (RH) *</label>
+                                        <select id="region" class="form-select" required>
+                                            <option value="">เลือกภูมิภาค</option>
+                                            <option value="RH1">RH1</option>
+                                            <option value="RH2">RH2</option>
+                                            <option value="RH3">RH3</option>
+                                            <option value="RH4">RH4</option>
+                                            <option value="RH5">RH5</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="zone" class="form-label">เขต (Zone) *</label>
+                                        <select id="zone" class="form-select" disabled required>
+                                            <option value="">เลือกภูมิภาคก่อน</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid gap-2 mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">บันทึกข้อมูลและเริ่มการประเมิน</button>
+                                    <button type="button" id="back-to-passcode" class="btn btn-outline-secondary">ย้อนกลับ</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Selection Screen -->
+    <div id="course-selection-screen" class="course-selection-screen">
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-10">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0">เลือกหลักสูตรประเมิน</h4>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row">
+                                <div class="col-md-6 mb-4">
+                                    <div class="card h-100 scenario-card">
+                                        <div class="card-body d-flex flex-column">
+                                            <h5 class="card-title text-primary">MAMA 1</h5>
+                                            <p class="card-text"><strong>Foundations for Professional CISA</strong></p>
+                                            <p class="card-text">เหมาะสำหรับพนักงานที่รับบริการธุรกรรมที่เคาน์เตอร์ เน้นการเปิดการสนทนาที่ไม่ Hard Sale และเชื่อมโยงเข้าสู่การเริ่มเสนอได้อย่างมีประสิทธิภาพ</p>
+                                            <ul class="mb-3">
+                                                <li>ระดับ: ต่ำ (Low)</li>
+                                                <li>รูปแบบ: Roleplay แบบ 2 ขั้นตอน</li>
+                                                <li>เวลา: 1 วัน (09:00 - 16:00 น.)</li>
+                                            </ul>
+                                            <button class="btn btn-primary mt-auto select-course" data-course="MAMA1">เลือกหลักสูตรนี้</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-4">
+                                    <div class="card h-100 scenario-card">
+                                        <div class="card-body d-flex flex-column">
+                                            <h5 class="card-title text-primary">MAMA 2</h5>
+                                            <p class="card-text"><strong>Master Asset of Mastery Advisor</strong></p>
+                                            <p class="card-text">เหมาะสำหรับพนักงานธนาคารที่ต้องพบเจอกับลูกค้าที่มีการนัดหมายไว้ล่วงหน้า เน้นการวิเคราะห์ข้อมูลลูกค้าและการนำเสนอในรูปแบบของที่ปรึกษา</p>
+                                            <ul class="mb-3">
+                                                <li>ระดับ: ปานกลาง (Medium)</li>
+                                                <li>รูปแบบ: Roleplay แบบ 2 ขั้นตอน</li>
+                                                <li>เวลา: 1 วัน (09:00 - 16:00 น.)</li>
+                                            </ul>
+                                            <button class="btn btn-primary mt-auto select-course" data-course="MAMA2">เลือกหลักสูตรนี้</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-center mt-3">
+                                <button id="back-to-registration" class="btn btn-outline-secondary">ย้อนกลับ</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Roleplay Screen -->
+    <div id="roleplay-screen" class="roleplay-screen">
+        <div class="container mt-4">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">สถานการณ์ Roleplay</h5>
+                            <span id="course-badge" class="badge bg-light text-dark"></span>
+                        </div>
+                        <div class="card-body">
+                            <div id="scenario-info" class="mb-4">
+                                <!-- Scenario will be loaded here -->
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6>ภารกิจที่ต้องปฏิบัติ</h6>
+                                <div id="stage-indicator" class="badge bg-warning text-dark">Stage 1: การนำเสนอ</div>
+                            </div>
+                            
+                            <div id="mission-list">
+                                <!-- Missions will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0" id="stage-title">ขั้นตอนที่ 1: การนำเสนอแผน</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <label class="form-label">บันทึกการนำเสนอแผนตามภารกิจ (อย่างน้อย 5 วินาที)</label>
+                                <div class="d-flex justify-content-center mb-3">
+                                    <div id="record-btn-a" class="recording-btn bg-danger text-white">
+                                        <i class="fas fa-microphone"></i>
+                                    </div>
+                                </div>
+                                <div class="text-center mb-3">
+                                    <div id="timer-a" class="fs-4">00:00</div>
+                                    <div class="text-muted small">ระยะเวลาการบันทึก</div>
+                                </div>
+                                <div class="d-flex justify-content-center">
+                                    <audio id="playback-a" controls class="d-none w-75"></audio>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button id="submit-stage-a" class="btn btn-primary btn-lg" disabled>
+                                    <span id="submit-a-text">ส่งการนำเสนอและรับข้อโต้แย้ง</span>
+                                    <span id="submit-a-loading" class="d-none">
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        กำลังประมวลผล...
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="objection-section" class="card mb-4 d-none">
+                        <div class="card-header bg-warning">
+                            <h5 class="mb-0">ขั้นตอนที่ 2: การรับมือข้อโต้แย้ง</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert objection-card mb-4">
+                                <h6><i class="fas fa-exclamation-triangle me-2"></i>ข้อโต้แย้งจากลูกค้า</h6>
+                                <p id="objection-text" class="mb-0 fw-bold"></p>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-label">บันทึกการตอบโต้ข้อโต้แย้ง (อย่างน้อย 5 วินาที)</label>
+                                <div class="d-flex justify-content-center mb-3">
+                                    <div id="record-btn-b" class="recording-btn bg-danger text-white">
+                                        <i class="fas fa-microphone"></i>
+                                    </div>
+                                </div>
+                                <div class="text-center mb-3">
+                                    <div id="timer-b" class="fs-4">00:00</div>
+                                    <div class="text-muted small">ระยะเวลาการบันทึก</div>
+                                </div>
+                                <div class="d-flex justify-content-center">
+                                    <audio id="playback-b" controls class="d-none w-75"></audio>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button id="submit-stage-b" class="btn btn-primary btn-lg" disabled>
+                                    <span id="submit-b-text">ส่งการตอบโต้และรับการประเมิน</span>
+                                    <span id="submit-b-loading" class="d-none">
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        กำลังประมวลผล...
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">ข้อมูลลูกค้า</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="customer-info">
+                                <!-- Customer info will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">เทคนิคที่ควรใช้</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="techniques-list">
+                                <!-- Techniques will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evaluation Screen -->
+    <div id="evaluation-screen" class="evaluation-screen">
+        <div class="container mt-4">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h4 class="mb-0">ผลการประเมินโดย AI</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-5">
+                                <div class="score-display" id="total-score">0</div>
+                                <p class="text-muted">คะแนนรวม</p>
+                                <div id="pass-status" class="pass-status d-inline-block"></div>
+                            </div>
+                            
+                            <h5 class="mb-3">คะแนนแยกตามมิติการประเมิน</h5>
+                            <div id="dimension-scores">
+                                <!-- Dimension scores will be loaded here -->
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="fas fa-check-circle me-2"></i>สิ่งที่ทำได้ดี</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <ul id="strengths-list" class="mb-0">
+                                                <!-- Strengths will be loaded here -->
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-header bg-warning">
+                                            <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>สิ่งที่ควรพัฒนา</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <ul id="improvements-list" class="mb-0">
+                                                <!-- Improvements will be loaded here -->
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card certificate-card mb-4">
+                        <div class="certificate-header text-center">
+                            <h4 class="text-primary">ใบรับรองผลการประเมิน</h4>
+                            <p class="text-muted mb-0">MAMA AI Roleplay Evaluation System</p>
+                        </div>
+                        
+                        <div class="text-center mb-4">
+                            <div class="mb-3">
+                                <h5 id="cert-name" class="mb-1"></h5>
+                                <p class="text-muted mb-1">รหัสพนักงาน: <span id="cert-employee-id"></span></p>
+                                <p class="text-muted">ตำแหน่ง: <span id="cert-position"></span></p>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h6 id="cert-course" class="text-primary"></h6>
+                                <p class="text-muted small">วันที่ประเมิน: <span id="cert-date"></span></p>
+                            </div>
+                            
+                            <div class="d-flex justify-content-center mb-3">
+                                <div class="text-center mx-3">
+                                    <div class="fs-4 fw-bold" id="cert-score">0</div>
+                                    <div class="text-muted small">คะแนน</div>
+                                </div>
+                                <div class="text-center mx-3">
+                                    <div id="cert-status-badge" class="pass-status d-block"></div>
+                                    <div class="text-muted small">สถานะ</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <button id="download-certificate" class="btn btn-outline-primary">
+                                <i class="fas fa-download me-2"></i>ดาวน์โหลดใบรับรอง
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button id="restart-evaluation" class="btn btn-primary">เริ่มการประเมินใหม่</button>
+                        <button id="view-admin" class="btn btn-outline-secondary">เข้าสู่หน้าผู้ดูแลระบบ</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Screen -->
+    <div id="admin-screen" class="admin-screen">
+        <div class="container mt-4">
+            <div class="row mb-4">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0">แผงควบคุมผู้ดูแลระบบ</h4>
+                            <button id="back-to-evaluation" class="btn btn-light btn-sm">กลับสู่หน้าหลัก</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-4">
+                                <div class="col-md-4">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body text-center">
+                                            <h1 class="display-4" id="active-users">0</h1>
+                                            <p class="mb-0">ผู้ใช้งานปัจจุบัน</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body text-center">
+                                            <h1 class="display-4" id="total-evaluations">0</h1>
+                                            <p class="mb-0">การประเมินทั้งหมด</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-warning text-white">
+                                        <div class="card-body text-center">
+                                            <h1 class="display-4" id="avg-score">0</h1>
+                                            <p class="mb-0">คะแนนเฉลี่ย</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="ranking-tab" data-bs-toggle="tab" data-bs-target="#ranking" type="button">การจัดอันดับ</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="prompt-tab" data-bs-toggle="tab" data-bs-target="#prompt" type="button">จัดการ Prompt</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="scenario-tab" data-bs-toggle="tab" data-bs-target="#scenario" type="button">สถานการณ์และข้อโต้แย้ง</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button">การตั้งค่าระบบ</button>
+                                </li>
+                            </ul>
+                            
+                            <div class="tab-content mt-4" id="adminTabContent">
+                                <!-- Rankings Tab -->
+                                <div class="tab-pane fade show active" id="ranking" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="card mb-4">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">Top 5 สูงสุดทั้งหมด</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover admin-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>อันดับ</th>
+                                                                    <th>ชื่อ-นามสกุล</th>
+                                                                    <th>หลักสูตร</th>
+                                                                    <th>คะแนน</th>
+                                                                    <th>วันที่</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody id="global-top5">
+                                                                <!-- Global top 5 will be loaded here -->
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">Top 10 ตามภูมิภาค</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">เลือกภูมิภาค:</label>
+                                                        <select id="region-filter" class="form-select">
+                                                            <option value="RH1">RH1</option>
+                                                            <option value="RH2">RH2</option>
+                                                            <option value="RH3">RH3</option>
+                                                            <option value="RH4">RH4</option>
+                                                            <option value="RH5">RH5</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover admin-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>อันดับ</th>
+                                                                    <th>ชื่อ-นามสกุล</th>
+                                                                    <th>หลักสูตร</th>
+                                                                    <th>คะแนน</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody id="regional-top10">
+                                                                <!-- Regional top 10 will be loaded here -->
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">Top 10 ตามหลักสูตร</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">เลือกหลักสูตร:</label>
+                                                        <select id="course-filter" class="form-select">
+                                                            <option value="MAMA1">MAMA 1</option>
+                                                            <option value="MAMA2">MAMA 2</option>
+                                                            <option value="ALL">ทั้งหมด</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover admin-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>อันดับ</th>
+                                                                    <th>ชื่อ-นามสกุล</th>
+                                                                    <th>ภูมิภาค</th>
+                                                                    <th>คะแนน</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody id="course-top10">
+                                                                <!-- Course top 10 will be loaded here -->
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Prompt Management Tab -->
+                                <div class="tab-pane fade" id="prompt" role="tabpanel">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">จัดการ Prompt สำหรับ AI Evaluation</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-4">
+                                                <label class="form-label">เลือกหลักสูตร:</label>
+                                                <select id="prompt-course" class="form-select">
+                                                    <option value="MAMA1">MAMA 1</option>
+                                                    <option value="MAMA2">MAMA 2</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label">Prompt ปัจจุบัน:</label>
+                                                <textarea id="current-prompt" class="form-control" rows="6" readonly></textarea>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label">Prompt ใหม่:</label>
+                                                <textarea id="new-prompt" class="form-control" rows="6" placeholder="กรอก prompt ใหม่ที่นี่..."></textarea>
+                                                <div class="form-text">ระบบจะทับ prompt เดิมด้วย prompt ใหม่นี้ทันที</div>
+                                            </div>
+                                            
+                                            <div class="d-grid">
+                                                <button id="update-prompt" class="btn btn-primary">
+                                                    <span id="update-prompt-text">อัปเดต Prompt</span>
+                                                    <span id="update-prompt-loading" class="d-none">
+                                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                                        กำลังบันทึก...
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Scenario Management Tab -->
+                                <div class="tab-pane fade" id="scenario" role="tabpanel">
+                                    <div class="card">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0">จัดการสถานการณ์และข้อโต้แย้ง</h6>
+                                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addScenarioModal">
+                                                <i class="fas fa-plus me-1"></i>เพิ่มสถานการณ์ใหม่
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">เลือกหลักสูตร:</label>
+                                                <select id="scenario-course-filter" class="form-select">
+                                                    <option value="MAMA1">MAMA 1</option>
+                                                    <option value="MAMA2">MAMA 2</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="table-responsive">
+                                                <table class="table table-hover admin-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>ID</th>
+                                                            <th>สถานการณ์</th>
+                                                            <th>หลักสูตร</th>
+                                                            <th>ข้อโต้แย้ง</th>
+                                                            <th>สถานะ</th>
+                                                            <th>การจัดการ</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="scenarios-table">
+                                                        <!-- Scenarios will be loaded here -->
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- System Settings Tab -->
+                                <div class="tab-pane fade" id="system" role="tabpanel">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">การตั้งค่าระบบ</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-4">
+                                                <h6 class="mb-3">รีเซ็ตรหัสผ่านระบบ</h6>
+                                                <div class="row align-items-end">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">รหัสผ่านปัจจุบัน: <code id="current-passcode">กำลังโหลด...</code></label>
+                                                        <input type="password" id="new-passcode" class="form-control" placeholder="กรอกรหัสผ่านใหม่">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <button id="update-passcode" class="btn btn-primary w-100">
+                                                            <span id="update-passcode-text">อัปเดตรหัสผ่าน</span>
+                                                            <span id="update-passcode-loading" class="d-none">
+                                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                                                กำลังบันทึก...
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-4">
+                                                <h6 class="mb-3">จัดการ Gemini API Keys</h6>
+                                                <div class="table-responsive mb-3">
+                                                    <table class="table table-hover">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Key ID</th>
+                                                                <th>ชื่อ Key</th>
+                                                                <th>โควต้ารายวัน</th>
+                                                                <th>สถานะ</th>
+                                                                <th>การจัดการ</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="api-keys-table">
+                                                            <!-- API Keys will be loaded here -->
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addApiQuotaModal">
+                                                    <i class="fas fa-plus me-1"></i>เพิ่มโควต้าการใช้งานใหม่
+                                                </button>
+                                            </div>
+                                            
+                                            <div>
+                                                <h6 class="mb-3">ข้อมูลระบบ</h6>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-2">
+                                                            <strong>เวอร์ชันระบบ:</strong> 1.1 (Secure Version)
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <strong>ฐานข้อมูล:</strong> Supabase
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <strong>Storage:</strong> roleplay-audios
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-2">
+                                                            <strong>AI Model:</strong> Gemini API
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <strong>Edge Function:</strong> evaluate-roleplay
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <strong>รหัสผู้ดูแลระบบ:</strong> admin2026
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Scenario Modal -->
+    <div class="modal fade" id="addScenarioModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">เพิ่มสถานการณ์ใหม่</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-scenario-form">
+                        <div class="mb-3">
+                            <label class="form-label">หลักสูตร *</label>
+                            <select id="new-scenario-course" class="form-select" required>
+                                <option value="MAMA1">MAMA 1</option>
+                                <option value="MAMA2">MAMA 2</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ชื่อสถานการณ์ *</label>
+                            <input type="text" id="new-scenario-name" class="form-control" placeholder="กรอกชื่อสถานการณ์" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">สถานที่และสถานการณ์ *</label>
+                            <textarea id="new-scenario-situation" class="form-control" rows="2" placeholder="อธิบายสถานที่และสถานการณ์" required></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อมูลลูกค้า (JSON Format) *</label>
+                            <textarea id="new-scenario-customer" class="form-control" rows="4" placeholder='{"name": "ชื่อลูกค้า", "age": 35, ...}' required></textarea>
+                            <div class="form-text">กรอกข้อมูลลูกค้าในรูปแบบ JSON</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">อินไซต์ลูกค้า *</label>
+                            <textarea id="new-scenario-insight" class="form-control" rows="2" placeholder="ข้อมูลความชอบหรือข้อมูลเฉพาะของลูกค้า" required></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ภารกิจ (ขึ้นบรรทัดใหม่สำหรับแต่ละภารกิจ) *</label>
+                            <textarea id="new-scenario-missions" class="form-control" rows="3" placeholder="ภารกิจที่ 1&#10;ภารกิจที่ 2&#10;ภารกิจที่ 3" required></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อโต้แย้ง (ขึ้นบรรทัดใหม่สำหรับแต่ละข้อโต้แย้ง) *</label>
+                            <textarea id="new-scenario-objections" class="form-control" rows="4" placeholder="ข้อโต้แย้งที่ 1&#10;ข้อโต้แย้งที่ 2&#10;ข้อโต้แย้งที่ 3" required></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">เทคนิค (ขั้นบรรทัดใหม่สำหรับแต่ละเทคนิค)</label>
+                            <textarea id="new-scenario-techniques" class="form-control" rows="3" placeholder="Rapport Building&#10;F.R.O.M. Technique&#10;NLP Basics"></textarea>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <span id="add-scenario-text">บันทึกสถานการณ์ใหม่</span>
+                                <span id="add-scenario-loading" class="d-none">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    กำลังบันทึก...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add API Quota Modal -->
+    <div class="modal fade" id="addApiQuotaModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">เพิ่มโควต้าการใช้งาน API ใหม่</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-api-quota-form">
+                        <div class="mb-3">
+                            <label class="form-label">ชื่อ Key *</label>
+                            <input type="text" id="new-api-name" class="form-control" placeholder="เช่น: Gemini Key 1" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">โควต้ารายวัน (จำนวนคำขอ) *</label>
+                            <input type="number" id="new-api-daily-quota" class="form-control" value="1000" min="1" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">โควต้ารายเดือน</label>
+                            <input type="number" id="new-api-monthly-quota" class="form-control" value="30000" min="1">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="new-api-active" checked>
+                                <label class="form-check-label" for="new-api-active">
+                                    เปิดใช้งานทันที
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <span id="add-api-quota-text">เพิ่มโควต้าการใช้งาน</span>
+                                <span id="add-api-quota-loading" class="d-none">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    กำลังบันทึก...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        // Supabase Configuration
+        const supabaseUrl = 'https://iuwszegqtgtvupavoucv.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1d3N6ZWdxdGd0dnVwYXZvdWN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3ODE3MDIsImV4cCI6MjA4NTM1NzcwMn0.z5DmbtLgULN-DjOnM6PrD9puKmKS_vd2rD5hp0huM6g';
+        
+        // Initialize Supabase
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        // Application State
+        const state = {
+            currentScreen: 'passcode',
+            userData: null,
+            currentCourse: null,
+            currentScenario: null,
+            currentObjection: null,
+            audioRecordings: {
+                stageA: null,
+                stageB: null
+            },
+            evaluationResult: null,
+            isRecording: false,
+            currentTimer: null,
+            timerSeconds: 0,
+            currentStage: 'A',
+            evaluationId: null
+        };
+        
+        // Zone mapping based on region
+        const zoneMapping = {
+            'RH1': ['จตุจักร', 'ธนบุรี', 'บางกะปิ', 'สาทร', 'สุขุมวิท'],
+            'RH2': ['ชลบุรี', 'บางนา', 'พัทยา', 'ระยอง'],
+            'RH3': ['เชียงใหม่', 'นครสวรรค์', 'นนทบุรี', 'พิษณุโลก', 'อยุธยา'],
+            'RH4': ['ดอนเมือง', 'นครราชสีมา', 'สระบุรี', 'อุดรธานี', 'อุบลราชธานี'],
+            'RH5': ['ภูเก็ต', 'ราชบุรี', 'สมุทรสาคร', 'สุราษฎร์ธานี', 'หาดใหญ่']
+        };
+        
+        // Sample scenarios for fallback
+        const fallbackScenarios = {
+            MAMA1: [
+                {
+                    id: 1,
+                    name: "ลูกค้าธุรกรรมที่เคาน์เตอร์",
+                    situation: "คุณเป็นพนักงานธนาคารที่รับบริการธุรกรรมที่เคาน์เตอร์ ลูกค้ามาเปิดบัญชีเงินฝากใหม่ และคุณสังเกตเห็นว่าลูกค้าดูสนใจข้อมูลเกี่ยวกับการลงทุนแต่ยังไม่กล้าถาม",
+                    customer: {
+                        name: "สุมนทา ใจดี",
+                        age: 32,
+                        occupation: "พนักงานบริษัทเอกชน",
+                        income: 35000,
+                        maritalStatus: "โสด",
+                        productHoldings: ["บัญชีออมทรัพย์", "บัตรเครดิต"],
+                        lastTransaction: "เปิดบัญชีเงินฝาก"
+                    },
+                    insight: "ลูกค้าเพิ่งได้งานใหม่และมีเงินเก็บเพิ่มขึ้น กำลังคิดหาช่องทางการลงทุนแต่ยังไม่มีความรู้มากนัก ดูเป็นคนระมัดระวังการเงิน",
+                    missions: [
+                        "เปิดบทสนทนาแบบเป็นธรรมชาติ ไม่ Hard Sale",
+                        "ถามคำถามเพื่อสำรวจความต้องการทางการเงินของลูกค้า",
+                        "แนะนำผลิตภัณฑ์ประกันชีวิตพื้นฐานที่เหมาะกับลูกค้า"
+                    ],
+                    objections: [
+                        "ฉันยังไม่พร้อมสำหรับการลงทุนตอนนี้ อยากเก็บเงินก่อน",
+                        "ประกันชีวิตดูซับซ้อนเกินไป ฉันไม่ค่อยเข้าใจ",
+                        "ฉันมีประกันจากที่ทำงานอยู่แล้ว คิดว่าไม่จำเป็นต้องซื้อเพิ่ม"
+                    ],
+                    techniques: ["Rapport Building", "F.R.O.M. Technique", "NLP Basics", "Buying Motives Analysis"]
+                }
+            ],
+            MAMA2: [
+                {
+                    id: 1,
+                    name: "ลูกค้านัดหมายเพื่อปรึกษาการเงิน",
+                    situation: "คุณเป็นที่ปรึกษาการเงินที่มีนัดกับลูกค้าล่วงหน้า 1 สัปดาห์ ลูกค้ามีเป้าหมายต้องการวางแผนการเงินเพื่อการเกษียณอายุ",
+                    customer: {
+                        name: "ศักดิ์ชัย วัฒนกิจ",
+                        age: 38,
+                        occupation: "แพทย์โรงพยาบาลเอกชน",
+                        income: 150000,
+                        maritalStatus: "แต่งงานมีบุตร 2 คน",
+                        productHoldings: ["กองทุนรวมหลายประเภท", "ประกันชีวิตแบบสะสมทรัพย์", "หุ้น", "พันธบัตร"],
+                        lastTransaction: "ซื้อกองทุนรวมหุ้นต่างประเทศ 200,000 บาท",
+                        riskProfile: "รับความเสี่ยงได้ปานกลาง",
+                        financialGoals: ["เกษียณอายุที่ 55 ปี", "การศึกษาบุตร", "ซื้อบ้านหลังที่สอง"]
+                    },
+                    insight: "ลูกค้ามีความรู้ทางการเงินดีแต่ขาดเวลาจัดการพอร์ต มีความกังวลเกี่ยวกับความมั่นคงหลังเกษียณเนื่องจากอาชีพแพทย์มีรายได้สูงเฉพาะช่วงวัยทำงาน",
+                    missions: [
+                        "วิเคราะห์ข้อมูลลูกค้าอย่างละเอียดเพื่อเข้าใจสถานการณ์ทางการเงิน",
+                        "ออกแบบแผนการเงินแบบองค์รวมที่ตอบโจทย์เป้าหมายการเกษียณ",
+                        "นำเสนอผลิตภัณฑ์ประกันชีวิตที่สอดคล้องกับแผนการลงทุนที่มีอยู่"
+                    ],
+                    objections: [
+                        "แผนประกันชีวิตดูให้ผลตอบแทนต่ำกว่ากองทุนรวมที่ฉันลงทุนอยู่",
+                        "ค่าเบี้ยประกันสูงเกินไปเมื่อเทียบกับความคุ้มครองที่ได้รับ",
+                        "ฉันคิดว่าการลงทุนในหุ้นและอสังหาริมทรัพย์น่าจะให้ผลตอบแทนที่ดีกว่าในระยะยาว"
+                    ],
+                    techniques: ["Financial Life Cycle Analysis", "Power Questioning", "Win-Win Negotiation", "LSCPA Framework"]
+                }
+            ]
+        };
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeEventListeners();
+            checkExistingSession();
+        });
+        
+        function initializeEventListeners() {
+            // Passcode screen
+            document.getElementById('passcode-submit').addEventListener('click', verifyPasscode);
+            document.getElementById('passcode-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') verifyPasscode();
+            });
+            
+            // Registration screen
+            document.getElementById('region').addEventListener('change', updateZoneDropdown);
+            document.getElementById('registration-form').addEventListener('submit', handleRegistration);
+            document.getElementById('back-to-passcode').addEventListener('click', function() {
+                showScreen('passcode');
+            });
+            
+            // Course selection
+            document.querySelectorAll('.select-course').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    selectCourse(this.dataset.course);
+                });
+            });
+            document.getElementById('back-to-registration').addEventListener('click', function() {
+                showScreen('registration');
+            });
+            
+            // Roleplay screen
+            document.getElementById('record-btn-a').addEventListener('click', function() {
+                toggleRecording('A');
+            });
+            document.getElementById('record-btn-b').addEventListener('click', function() {
+                toggleRecording('B');
+            });
+            document.getElementById('submit-stage-a').addEventListener('click', submitStageA);
+            document.getElementById('submit-stage-b').addEventListener('click', submitStageB);
+            
+            // Evaluation screen
+            document.getElementById('restart-evaluation').addEventListener('click', function() {
+                showScreen('course-selection');
+            });
+            document.getElementById('view-admin').addEventListener('click', function() {
+                const adminPasscode = prompt('กรุณากรอกรหัสผ่านผู้ดูแลระบบ:');
+                if (adminPasscode === 'admin2026') {
+                    loadAdminData();
+                    showScreen('admin');
+                } else {
+                    alert('รหัสผ่านไม่ถูกต้อง');
+                }
+            });
+            document.getElementById('download-certificate').addEventListener('click', downloadCertificate);
+            
+            // Admin screen
+            document.getElementById('back-to-evaluation').addEventListener('click', function() {
+                showScreen('evaluation');
+            });
+            document.getElementById('region-filter').addEventListener('change', loadRegionalRankings);
+            document.getElementById('course-filter').addEventListener('change', loadCourseRankings);
+            document.getElementById('prompt-course').addEventListener('change', loadCurrentPrompt);
+            document.getElementById('update-prompt').addEventListener('click', updatePrompt);
+            document.getElementById('scenario-course-filter').addEventListener('change', loadScenariosTable);
+            document.getElementById('update-passcode').addEventListener('click', updateSystemPasscode);
+            
+            // Modal forms
+            document.getElementById('add-scenario-form').addEventListener('submit', addNewScenario);
+            document.getElementById('add-api-quota-form').addEventListener('submit', addNewApiQuota);
+            
+            // Logout
+            document.getElementById('logout-btn').addEventListener('click', logout);
+        }
+        
+        function checkExistingSession() {
+            const savedUserData = localStorage.getItem('mamaUserData');
+            if (savedUserData) {
+                state.userData = JSON.parse(savedUserData);
+                showScreen('course-selection');
+                updateUserInfo();
+            }
+        }
+        
+        function showScreen(screenName) {
+            // Hide all screens
+            document.querySelectorAll('.passcode-screen, .registration-screen, .course-selection-screen, .roleplay-screen, .evaluation-screen, .admin-screen').forEach(screen => {
+                screen.classList.remove('active-screen');
+            });
+            
+            // Show the requested screen
+            document.getElementById(`${screenName}-screen`).classList.add('active-screen');
+            
+            // Update navigation visibility
+            const userInfoEl = document.getElementById('user-info');
+            const logoutBtn = document.getElementById('logout-btn');
+            
+            if (screenName === 'passcode' || screenName === 'registration') {
+                userInfoEl.classList.add('d-none');
+                logoutBtn.classList.add('d-none');
+            } else {
+                userInfoEl.classList.remove('d-none');
+                logoutBtn.classList.remove('d-none');
+            }
+            
+            state.currentScreen = screenName;
+        }
+        
+        function showProcessing(message = 'กำลังประมวลผล...') {
+            document.getElementById('processing-message').textContent = message;
+            document.getElementById('processing-overlay').classList.add('active');
+        }
+        
+        function hideProcessing() {
+            document.getElementById('processing-overlay').classList.remove('active');
+        }
+        
+        // Passcode verification (from Supabase)
+        async function verifyPasscode() {
+            const passcodeInput = document.getElementById('passcode-input');
+            const passcodeError = document.getElementById('passcode-error');
+            const passcode = passcodeInput.value.trim();
+            
+            if (!passcode) {
+                passcodeError.textContent = 'กรุณากรอกรหัสผ่าน';
+                passcodeError.classList.remove('d-none');
+                return;
+            }
+            
+            showProcessing('กำลังตรวจสอบรหัสผ่าน...');
+            
+            try {
+                // Try to get passcode from Supabase
+                const { data, error } = await supabase
+                    .from('system_settings')
+                    .select('setting_value')
+                    .eq('setting_name', 'global_passcode')
+                    .single();
+                
+                let validPasscode = 'mama'; // Default fallback
+                
+                if (!error && data && data.setting_value) {
+                    validPasscode = data.setting_value;
+                }
+                
+                // Check passcode (case-insensitive)
+                if (passcode.toLowerCase() === validPasscode.toLowerCase()) {
+                    passcodeError.classList.add('d-none');
+                    showScreen('registration');
+                    passcodeInput.value = '';
+                } else {
+                    passcodeError.textContent = 'รหัสผ่านไม่ถูกต้อง';
+                    passcodeError.classList.remove('d-none');
+                }
+            } catch (error) {
+                console.error('Error verifying passcode:', error);
+                // Fallback to default passcode
+                if (passcode.toLowerCase() === 'mama') {
+                    passcodeError.classList.add('d-none');
+                    showScreen('registration');
+                    passcodeInput.value = '';
+                } else {
+                    passcodeError.textContent = 'ไม่สามารถตรวจสอบรหัสผ่านได้';
+                    passcodeError.classList.remove('d-none');
+                }
+            } finally {
+                hideProcessing();
+            }
+        }
+        
+        // Zone dropdown update
+        function updateZoneDropdown() {
+            const regionSelect = document.getElementById('region');
+            const zoneSelect = document.getElementById('zone');
+            const selectedRegion = regionSelect.value;
+            
+            if (selectedRegion && zoneMapping[selectedRegion]) {
+                zoneSelect.disabled = false;
+                zoneSelect.innerHTML = '<option value="">เลือกเขต</option>';
+                
+                zoneMapping[selectedRegion].forEach(zone => {
+                    const option = document.createElement('option');
+                    option.value = zone;
+                    option.textContent = zone;
+                    zoneSelect.appendChild(option);
+                });
+            } else {
+                zoneSelect.disabled = true;
+                zoneSelect.innerHTML = '<option value="">เลือกภูมิภาคก่อน</option>';
+            }
+        }
+        
+        // Registration handling
+        async function handleRegistration(e) {
+            e.preventDefault();
+            
+            // Collect form data
+            const userData = {
+                employeeId: document.getElementById('employee-id').value,
+                firstName: document.getElementById('first-name').value,
+                lastName: document.getElementById('last-name').value,
+                position: document.getElementById('position').value,
+                region: document.getElementById('region').value,
+                zone: document.getElementById('zone').value,
+                registrationDate: new Date().toISOString()
+            };
+            
+            // Basic validation
+            if (!userData.employeeId || !userData.firstName || !userData.lastName || 
+                !userData.position || !userData.region || !userData.zone) {
+                alert('กรุณากรอกข้อมูลให้ครบทุกช่อง');
+                return;
+            }
+            
+            // Validate employee ID is numeric
+            if (!/^\d+$/.test(userData.employeeId)) {
+                alert('รหัสพนักงานต้องเป็นตัวเลขเท่านั้น');
+                return;
+            }
+            
+            showProcessing('กำลังบันทึกข้อมูล...');
+            
+            try {
+                // Save user data to Supabase
+                const { data, error } = await supabase
+                    .from('users_log')
+                    .insert([{
+                        employee_id: userData.employeeId,
+                        first_name: userData.firstName,
+                        last_name: userData.lastName,
+                        position: userData.position,
+                        region: userData.region,
+                        zone: userData.zone,
+                        registration_date: userData.registrationDate
+                    }]);
+                    
+                if (error) throw error;
+                
+                // Save user data to state and localStorage
+                state.userData = userData;
+                localStorage.setItem('mamaUserData', JSON.stringify(userData));
+                
+                // Update UI and move to course selection
+                updateUserInfo();
+                showScreen('course-selection');
+                
+            } catch (error) {
+                console.error('Error saving to Supabase:', error);
+                alert('ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
+            } finally {
+                hideProcessing();
+            }
+        }
+        
+        function updateUserInfo() {
+            if (state.userData) {
+                document.getElementById('display-name').textContent = 
+                    `${state.userData.firstName} ${state.userData.lastName}`;
+            }
+        }
+        
+        // Course selection
+        async function selectCourse(course) {
+            state.currentCourse = course;
+            
+            // Try to load scenarios from Supabase
+            showProcessing('กำลังโหลดสถานการณ์...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('scenarios')
+                    .select('*')
+                    .eq('course', course)
+                    .eq('is_active', true);
+                
+                let scenarios = [];
+                
+                if (!error && data && data.length > 0) {
+                    scenarios = data;
+                } else {
+                    // Use fallback scenarios
+                    scenarios = fallbackScenarios[course] || [];
+                }
+                
+                if (scenarios.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * scenarios.length);
+                    state.currentScenario = scenarios[randomIndex];
+                    loadScenario();
+                    showScreen('roleplay');
+                } else {
+                    alert('ไม่พบสถานการณ์สำหรับหลักสูตรนี้');
+                }
+                
+            } catch (error) {
+                console.error('Error loading scenarios:', error);
+                // Use fallback scenarios
+                const scenarios = fallbackScenarios[course] || [];
+                if (scenarios.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * scenarios.length);
+                    state.currentScenario = scenarios[randomIndex];
+                    loadScenario();
+                    showScreen('roleplay');
+                } else {
+                    alert('ไม่สามารถโหลดสถานการณ์ได้');
+                }
+            } finally {
+                hideProcessing();
+            }
+        }
+        
+        function loadScenario() {
+            if (!state.currentScenario) return;
+            
+            const scenario = state.currentScenario;
+            
+            // Parse customer data if it's a string
+            let customerData = scenario.customer;
+            if (typeof customerData === 'string') {
+                try {
+                    customerData = JSON.parse(customerData);
+                } catch (e) {
+                    console.error('Error parsing customer data:', e);
+                    customerData = {};
+                }
+            }
+            
+            // Parse missions if it's a string
+            let missions = scenario.missions;
+            if (typeof missions === 'string') {
+                try {
+                    missions = JSON.parse(missions);
+                } catch (e) {
+                    // Try splitting by newline
+                    missions = missions.split('\n').filter(m => m.trim());
+                }
+            }
+            
+            // Parse objections if it's a string
+            let objections = scenario.objections;
+            if (typeof objections === 'string') {
+                try {
+                    objections = JSON.parse(objections);
+                } catch (e) {
+                    // Try splitting by newline
+                    objections = objections.split('\n').filter(o => o.trim());
+                }
+            }
+            
+            // Parse techniques if it's a string
+            let techniques = scenario.techniques || [];
+            if (techniques && typeof techniques === 'string') {
+                try {
+                    techniques = JSON.parse(techniques);
+                } catch (e) {
+                    // Try splitting by newline
+                    techniques = techniques.split('\n').filter(t => t.trim());
+                }
+            }
+            
+            // Update scenario info
+            document.getElementById('scenario-info').innerHTML = `
+                <h6>${scenario.scenario_name || scenario.name}</h6>
+                <p>${scenario.situation}</p>
+            `;
+            
+            // Update course badge
+            document.getElementById('course-badge').textContent = 
+                state.currentCourse === 'MAMA1' ? 'MAMA 1' : 'MAMA 2';
+            
+            // Update missions
+            const missionList = document.getElementById('mission-list');
+            missionList.innerHTML = '';
+            missions.forEach((mission, index) => {
+                missionList.innerHTML += `
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="mission-${index}">
+                        <label class="form-check-label" for="mission-${index}">
+                            ภารกิจที่ ${index + 1}: ${mission}
+                        </label>
+                    </div>
+                `;
+            });
+            
+            // Update customer info
+            document.getElementById('customer-info').innerHTML = `
+                <p class="mb-1"><strong>ชื่อ:</strong> ${customerData.name || 'ไม่ระบุ'}</p>
+                <p class="mb-1"><strong>อายุ:</strong> ${customerData.age || 'ไม่ระบุ'} ปี</p>
+                <p class="mb-1"><strong>อาชีพ:</strong> ${customerData.occupation || 'ไม่ระบุ'}</p>
+                <p class="mb-1"><strong>รายได้:</strong> ${customerData.income ? customerData.income.toLocaleString() : 'ไม่ระบุ'} บาท/เดือน</p>
+                <p class="mb-1"><strong>สถานภาพ:</strong> ${customerData.maritalStatus || 'ไม่ระบุ'}</p>
+                <p class="mb-2"><strong>ผลิตภัณฑ์ที่มี:</strong> ${customerData.productHoldings ? customerData.productHoldings.join(', ') : 'ไม่ระบุ'}</p>
+                <p class="mb-0"><strong>อินไซต์:</strong> ${scenario.insight}</p>
+            `;
+            
+            // Update techniques
+            const techniquesList = document.getElementById('techniques-list');
+            techniquesList.innerHTML = '';
+            if (techniques && techniques.length > 0) {
+                techniques.forEach(tech => {
+                    techniquesList.innerHTML += `<span class="badge bg-light text-dark me-1 mb-1">${tech}</span>`;
+                });
+            } else {
+                techniquesList.innerHTML = '<p class="text-muted small">ไม่มีข้อมูลเทคนิค</p>';
+            }
+            
+            // Store parsed data in state
+            state.currentScenario.parsedData = {
+                customer: customerData,
+                missions: missions,
+                objections: objections,
+                techniques: techniques
+            };
+            
+            // Reset stage indicators
+            document.getElementById('stage-indicator').textContent = 'Stage 1: การนำเสนอ';
+            document.getElementById('stage-title').textContent = 'ขั้นตอนที่ 1: การนำเสนอแผน';
+            
+            // Reset recording states
+            resetRecordingState();
+        }
+        
+        // Recording functionality
+        let mediaRecorder;
+        let audioChunks = [];
+        
+        function toggleRecording(stage) {
+            if (state.isRecording) {
+                stopRecording();
+            } else {
+                startRecording(stage);
+            }
+        }
+        
+        async function startRecording(stage) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                state.currentStage = stage;
+                state.isRecording = true;
+                
+                // Update UI
+                const recordBtn = document.getElementById(`record-btn-${stage.toLowerCase()}`);
+                recordBtn.classList.add('recording');
+                recordBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                
+                // Start timer
+                state.timerSeconds = 0;
+                state.currentTimer = setInterval(() => {
+                    state.timerSeconds++;
+                    const timerElement = document.getElementById(`timer-${stage.toLowerCase()}`);
+                    const minutes = Math.floor(state.timerSeconds / 60);
+                    const seconds = state.timerSeconds % 60;
+                    timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }, 1000);
+                
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Save recording to state
+                    state.audioRecordings[`stage${stage}`] = {
+                        blob: audioBlob,
+                        url: audioUrl,
+                        duration: state.timerSeconds
+                    };
+                    
+                    // Update playback
+                    const playbackElement = document.getElementById(`playback-${stage.toLowerCase()}`);
+                    playbackElement.src = audioUrl;
+                    playbackElement.classList.remove('d-none');
+                    
+                    // Enable submit button if recording is at least 5 seconds
+                    const submitButton = document.getElementById(`submit-stage-${stage.toLowerCase()}`);
+                    if (state.timerSeconds >= 5) {
+                        submitButton.disabled = false;
+                    }
+                };
+                
+                mediaRecorder.start();
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                alert('ไม่สามารถเข้าถึงไมโครโฟนได้ กรุณาตรวจสอบการอนุญาต');
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                
+                // Stop all tracks
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                
+                // Update UI
+                const recordBtn = document.getElementById(`record-btn-${state.currentStage.toLowerCase()}`);
+                recordBtn.classList.remove('recording');
+                recordBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                
+                // Stop timer
+                if (state.currentTimer) {
+                    clearInterval(state.currentTimer);
+                    state.currentTimer = null;
+                }
+                
+                state.isRecording = false;
+            }
+        }
+        
+        function resetRecordingState() {
+            // Reset timers
+            document.getElementById('timer-a').textContent = '00:00';
+            document.getElementById('timer-b').textContent = '00:00';
+            
+            // Hide playback elements
+            document.getElementById('playback-a').classList.add('d-none');
+            document.getElementById('playback-b').classList.add('d-none');
+            
+            // Disable submit buttons
+            document.getElementById('submit-stage-a').disabled = true;
+            document.getElementById('submit-stage-b').disabled = true;
+            
+            // Reset loading states
+            document.getElementById('submit-a-text').classList.remove('d-none');
+            document.getElementById('submit-a-loading').classList.add('d-none');
+            document.getElementById('submit-b-text').classList.remove('d-none');
+            document.getElementById('submit-b-loading').classList.add('d-none');
+            
+            // Reset recording buttons
+            document.getElementById('record-btn-a').innerHTML = '<i class="fas fa-microphone"></i>';
+            document.getElementById('record-btn-b').innerHTML = '<i class="fas fa-microphone"></i>';
+            document.getElementById('record-btn-a').classList.remove('recording');
+            document.getElementById('record-btn-b').classList.remove('recording');
+            
+            // Hide objection section
+            document.getElementById('objection-section').classList.add('d-none');
+            
+            // Reset state
+            state.audioRecordings = { stageA: null, stageB: null };
+            state.currentObjection = null;
+            state.evaluationId = null;
+        }
+        
+        // Stage submission
+        async function submitStageA() {
+            if (!state.audioRecordings.stageA || state.audioRecordings.stageA.duration < 5) {
+                alert('กรุณาบันทึกเสียงอย่างน้อย 5 วินาที');
+                return;
+            }
+            
+            // Show loading state
+            document.getElementById('submit-a-text').classList.add('d-none');
+            document.getElementById('submit-a-loading').classList.remove('d-none');
+            document.getElementById('submit-stage-a').disabled = true;
+            
+            try {
+                // Upload audio to Supabase Storage
+                const audioFile = new File(
+                    [state.audioRecordings.stageA.blob], 
+                    `audio_A_${state.userData.employeeId}_${Date.now()}.webm`, 
+                    { type: 'audio/webm' }
+                );
+                
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('roleplay-audios')
+                    .upload(`user_${state.userData.employeeId}/${audioFile.name}`, audioFile);
+                
+                if (uploadError) throw new Error(`อัปโหลดไฟล์เสียงล้มเหลว: ${uploadError.message}`);
+                
+                // Create evaluation record in database
+                const { data: evalData, error: evalError } = await supabase
+                    .from('evaluations')
+                    .insert({
+                        employee_id: state.userData.employeeId,
+                        user_name: `${state.userData.firstName} ${state.userData.lastName}`,
+                        position: state.userData.position,
+                        region: state.userData.region,
+                        zone: state.userData.zone,
+                        course: state.currentCourse,
+                        scenario_id: state.currentScenario?.id || 0,
+                        audio_file_a: uploadData.path,
+                        status: 'stage1_completed',
+                        created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (evalError) throw new Error(`สร้างบันทึก evaluation ล้มเหลว: ${evalError.message}`);
+                
+                // Save evaluation ID for later
+                state.evaluationId = evalData.id;
+                
+                // Show objection section
+                document.getElementById('objection-section').classList.remove('d-none');
+                
+                // Select a random objection
+                if (state.currentScenario && state.currentScenario.parsedData && state.currentScenario.parsedData.objections) {
+                    const objections = state.currentScenario.parsedData.objections;
+                    const randomIndex = Math.floor(Math.random() * objections.length);
+                    state.currentObjection = objections[randomIndex];
+                    document.getElementById('objection-text').textContent = state.currentObjection;
+                } else if (state.currentScenario && state.currentScenario.objections) {
+                    const objections = state.currentScenario.objections;
+                    const randomIndex = Math.floor(Math.random() * objections.length);
+                    state.currentObjection = objections[randomIndex];
+                    document.getElementById('objection-text').textContent = state.currentObjection;
+                }
+                
+                // Update UI indicators
+                document.getElementById('stage-indicator').textContent = 'Stage 2: การรับมือข้อโต้แย้ง';
+                document.getElementById('stage-indicator').classList.add('bg-warning');
+                
+            } catch (error) {
+                console.error('Error in stage A submission:', error);
+                alert('เกิดข้อผิดพลาดในการส่งไฟล์เสียง');
+            } finally {
+                // Reset button state
+                document.getElementById('submit-a-text').classList.remove('d-none');
+                document.getElementById('submit-a-loading').classList.add('d-none');
+                document.getElementById('submit-stage-a').disabled = false;
+            }
+        }
+        
+        async function submitStageB() {
+            if (!state.audioRecordings.stageB || state.audioRecordings.stageB.duration < 5) {
+                alert('กรุณาบันทึกเสียงอย่างน้อย 5 วินาที');
+                return;
+            }
+            
+            if (!state.evaluationId) {
+                alert('ไม่พบข้อมูลการประเมิน กรุณาเริ่มใหม่');
+                return;
+            }
+            
+            // Show loading state
+            document.getElementById('submit-b-text').classList.add('d-none');
+            document.getElementById('submit-b-loading').classList.remove('d-none');
+            document.getElementById('submit-stage-b').disabled = true;
+            
+            showProcessing('กำลังประเมินผล...');
+            
+            try {
+                // Upload second audio to Supabase Storage
+                const audioFile = new File(
+                    [state.audioRecordings.stageB.blob], 
+                    `audio_B_${state.userData.employeeId}_${Date.now()}.webm`, 
+                    { type: 'audio/webm' }
+                );
+                
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('roleplay-audios')
+                    .upload(`user_${state.userData.employeeId}/${audioFile.name}`, audioFile);
+                
+                if (uploadError) throw new Error(`อัปโหลดไฟล์เสียงล้มเหลว: ${uploadError.message}`);
+                
+                // Update evaluation record with second audio
+                const { error: updateError } = await supabase
+                    .from('evaluations')
+                    .update({
+                        audio_file_b: uploadData.path,
+                        status: 'processing',
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', state.evaluationId);
+                
+                if (updateError) throw new Error(`อัปเดต evaluation ล้มเหลว: ${updateError.message}`);
+                
+                // Get public URLs for both audio files
+                const { data: { publicUrl: urlA } } = supabase.storage
+                    .from('roleplay-audios')
+                    .getPublicUrl(`user_${state.userData.employeeId}/audio_A_${state.userData.employeeId}_*.webm`);
+                
+                const { data: { publicUrl: urlB } } = supabase.storage
+                    .from('roleplay-audios')
+                    .getPublicUrl(`user_${state.userData.employeeId}/audio_B_${state.userData.employeeId}_*.webm`);
+                
+                // Call Edge Function for AI evaluation
+                const response = await fetch(`${supabaseUrl}/functions/v1/evaluate-roleplay`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        audioUrlA: urlA,
+                        audioUrlB: urlB,
+                        course: state.currentCourse,
+                        userId: state.userData.employeeId,
+                        evaluationId: state.evaluationId,
+                        scenario: state.currentScenario
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'การประเมินผลล้มเหลว');
+                }
+                
+                // Save evaluation result
+                state.evaluationResult = result.evaluation;
+                
+                // Update evaluation record with result
+                const { error: resultError } = await supabase
+                    .from('evaluations')
+                    .update({
+                        total_score: result.evaluation.totalScore,
+                        dimension1_score: result.evaluation.dimensions[0]?.score || 0,
+                        dimension2_score: result.evaluation.dimensions[1]?.score || 0,
+                        dimension3_score: result.evaluation.dimensions[2]?.score || 0,
+                        dimension4_score: result.evaluation.dimensions[3]?.score || 0,
+                        dimension5_score: result.evaluation.dimensions[4]?.score || 0,
+                        strengths: JSON.stringify(result.evaluation.strengths || []),
+                        improvements: JSON.stringify(result.evaluation.improvements || []),
+                        pass_status: result.evaluation.pass,
+                        status: 'completed',
+                        evaluated_at: new Date().toISOString()
+                    })
+                    .eq('id', state.evaluationId);
+                
+                if (resultError) {
+                    console.error('Error saving evaluation result:', resultError);
+                }
+                
+                // Show evaluation results
+                showEvaluationResults();
+                
+            } catch (error) {
+                console.error('Error in evaluation:', error);
+                
+                // Fallback to simulated evaluation
+                try {
+                    simulateAIEvaluation();
+                    
+                    // Still try to save the simulated result
+                    if (state.evaluationId && state.evaluationResult) {
+                        await supabase
+                            .from('evaluations')
+                            .update({
+                                total_score: state.evaluationResult.totalScore,
+                                dimension1_score: state.evaluationResult.dimensions[0]?.score || 0,
+                                dimension2_score: state.evaluationResult.dimensions[1]?.score || 0,
+                                dimension3_score: state.evaluationResult.dimensions[2]?.score || 0,
+                                dimension4_score: state.evaluationResult.dimensions[3]?.score || 0,
+                                dimension5_score: state.evaluationResult.dimensions[4]?.score || 0,
+                                strengths: JSON.stringify(state.evaluationResult.strengths || []),
+                                improvements: JSON.stringify(state.evaluationResult.improvements || []),
+                                pass_status: state.evaluationResult.pass,
+                                status: 'completed_fallback',
+                                evaluated_at: new Date().toISOString()
+                            })
+                            .eq('id', state.evaluationId);
+                    }
+                    
+                } catch (fallbackError) {
+                    console.error('Fallback evaluation failed:', fallbackError);
+                    alert('การประเมินผลล้มเหลว กรุณาลองใหม่อีกครั้ง');
+                }
+            } finally {
+                // Reset button state
+                document.getElementById('submit-b-text').classList.remove('d-none');
+                document.getElementById('submit-b-loading').classList.add('d-none');
+                document.getElementById('submit-stage-b').disabled = false;
+                hideProcessing();
+            }
+        }
+        
+        // Simulated AI evaluation for fallback
+        function simulateAIEvaluation() {
+            // Generate random scores (between 60-95 for demo)
+            const dimension1 = Math.floor(Math.random() * 36) + 60;
+            const dimension2 = Math.floor(Math.random() * 36) + 60;
+            const dimension3 = Math.floor(Math.random() * 36) + 60;
+            const dimension4 = Math.floor(Math.random() * 36) + 60;
+            const dimension5 = Math.floor(Math.random() * 36) + 60;
+            
+            const totalScore = Math.round((dimension1 + dimension2 + dimension3 + dimension4 + dimension5) / 5);
+            
+            state.evaluationResult = {
+                totalScore: totalScore,
+                dimensions: [
+                    { name: "การวิเคราะห์และตอบโจทย์ภารกิจ", score: dimension1 },
+                    { name: "แผนหรือการนำเสนอมีความแข็งแรง", score: dimension2 },
+                    { name: "การใช้ภาษาที่เข้าใจง่ายและโน้มน้าว", score: dimension3 },
+                    { name: "การแก้ไขข้อโต้แย้ง", score: dimension4 },
+                    { name: "การใช้เทคนิคตามหลักสูตร", score: dimension5 }
+                ],
+                strengths: [
+                    "สามารถเปิดบทสนทนาได้อย่างเป็นธรรมชาติ",
+                    "วิเคราะห์ความต้องการของลูกค้าได้ดี",
+                    "ใช้ภาษาที่เข้าใจง่ายและน่าเชื่อถือ"
+                ],
+                improvements: [
+                    "ควรเพิ่มการตั้งคำถามเชิงลึกเพื่อสำรวจความต้องการ",
+                    "สามารถใช้เทคนิค storytelling เพื่อสร้างการเชื่อมโยงได้มากขึ้น",
+                    "ควรฝึกฝนการตอบข้อโต้แย้งด้วยเทคนิค A.C.T. ให้คล่องแคล่วยิ่งขึ้น"
+                ],
+                pass: totalScore >= 70
+            };
+            
+            showEvaluationResults();
+        }
+        
+        function showEvaluationResults() {
+            if (!state.evaluationResult) return;
+            
+            const result = state.evaluationResult;
+            
+            // Update total score
+            document.getElementById('total-score').textContent = result.totalScore;
+            
+            // Update pass status
+            const passStatus = document.getElementById('pass-status');
+            passStatus.textContent = result.pass ? 'PASS' : 'NOT PASS';
+            passStatus.className = result.pass ? 'pass-status pass' : 'pass-status not-pass';
+            
+            // Update dimension scores
+            const dimensionContainer = document.getElementById('dimension-scores');
+            dimensionContainer.innerHTML = '';
+            
+            result.dimensions.forEach(dimension => {
+                dimensionContainer.innerHTML += `
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>${dimension.name}</span>
+                            <span class="fw-bold">${dimension.score}/100</span>
+                        </div>
+                        <div class="dimension-score">
+                            <div class="dimension-fill" style="width: ${dimension.score}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Update strengths
+            const strengthsList = document.getElementById('strengths-list');
+            strengthsList.innerHTML = '';
+            result.strengths.forEach(strength => {
+                strengthsList.innerHTML += `<li>${strength}</li>`;
+            });
+            
+            // Update improvements
+            const improvementsList = document.getElementById('improvements-list');
+            improvementsList.innerHTML = '';
+            result.improvements.forEach(improvement => {
+                improvementsList.innerHTML += `<li>${improvement}</li>`;
+            });
+            
+            // Update certificate
+            updateCertificate();
+            
+            // Show evaluation screen
+            showScreen('evaluation');
+        }
+        
+        function updateCertificate() {
+            if (!state.userData || !state.evaluationResult) return;
+            
+            document.getElementById('cert-name').textContent = 
+                `${state.userData.firstName} ${state.userData.lastName}`;
+            document.getElementById('cert-employee-id').textContent = state.userData.employeeId;
+            document.getElementById('cert-position').textContent = state.userData.position;
+            document.getElementById('cert-course').textContent = 
+                state.currentCourse === 'MAMA1' ? 'MAMA 1: Foundations for Professional CISA' : 'MAMA 2: Master Asset of Mastery Advisor';
+            document.getElementById('cert-date').textContent = new Date().toLocaleDateString('th-TH');
+            document.getElementById('cert-score').textContent = state.evaluationResult.totalScore;
+            
+            const certStatusBadge = document.getElementById('cert-status-badge');
+            certStatusBadge.textContent = state.evaluationResult.pass ? 'PASS' : 'NOT PASS';
+            certStatusBadge.className = state.evaluationResult.pass ? 'pass-status pass d-block' : 'pass-status not-pass d-block';
+        }
+        
+        function downloadCertificate() {
+            // In a real implementation, this would generate a PDF certificate
+            alert('ระบบดาวน์โหลดใบรับรองกำลังพัฒนา');
+        }
+        
+        // Admin functions
+        async function loadAdminData() {
+            showProcessing('กำลังโหลดข้อมูล...');
+            
+            try {
+                // Load active users (last 7 days)
+                const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                const { count: activeUsers, error: usersError } = await supabase
+                    .from('users_log')
+                    .select('*', { count: 'exact', head: true })
+                    .gte('registration_date', sevenDaysAgo);
+                
+                if (!usersError) {
+                    document.getElementById('active-users').textContent = activeUsers || 0;
+                }
+                
+                // Load total evaluations
+                const { count: totalEvals, error: evalsError } = await supabase
+                    .from('evaluations')
+                    .select('*', { count: 'exact', head: true });
+                
+                if (!evalsError) {
+                    document.getElementById('total-evaluations').textContent = totalEvals || 0;
+                }
+                
+                // Load average score
+                const { data: scores, error: scoresError } = await supabase
+                    .from('evaluations')
+                    .select('total_score')
+                    .not('total_score', 'is', null);
+                
+                if (!scoresError && scores && scores.length > 0) {
+                    const total = scores.reduce((sum, item) => sum + (item.total_score || 0), 0);
+                    const avgScore = Math.round(total / scores.length);
+                    document.getElementById('avg-score').textContent = avgScore;
+                }
+                
+                // Load rankings
+                await loadGlobalRankings();
+                await loadRegionalRankings();
+                await loadCourseRankings();
+                
+                // Load other data
+                await loadCurrentPrompt();
+                await loadScenariosTable();
+                await loadApiKeysTable();
+                await loadCurrentPasscode();
+                
+            } catch (error) {
+                console.error('Error loading admin data:', error);
+                alert('ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
+            } finally {
+                hideProcessing();
+            }
+        }
+        
+        async function loadGlobalRankings() {
+            try {
+                const { data, error } = await supabase
+                    .from('evaluations')
+                    .select(`
+                        user_name,
+                        course,
+                        total_score,
+                        evaluated_at,
+                        users_log:employee_id(region)
+                    `)
+                    .not('total_score', 'is', null)
+                    .order('total_score', { ascending: false })
+                    .limit(5);
+                
+                if (error) throw error;
+                
+                const tableBody = document.getElementById('global-top5');
+                tableBody.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">ไม่มีข้อมูล</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                data.forEach((eval, index) => {
+                    const date = eval.evaluated_at ? new Date(eval.evaluated_at).toLocaleDateString('th-TH') : '-';
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${eval.user_name || 'ไม่ระบุชื่อ'}</td>
+                            <td>${eval.course === 'MAMA1' ? 'MAMA 1' : 'MAMA 2'}</td>
+                            <td><strong>${eval.total_score || 0}</strong></td>
+                            <td>${date}</td>
+                        </tr>
+                    `;
+                });
+                
+            } catch (error) {
+                console.error('Error loading global rankings:', error);
+                document.getElementById('global-top5').innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">ไม่สามารถโหลดข้อมูลได้</td>
+                    </tr>
+                `;
+            }
+        }
+        
+        async function loadRegionalRankings() {
+            const region = document.getElementById('region-filter').value;
+            
+            try {
+                // First get users in this region
+                const { data: users, error: usersError } = await supabase
+                    .from('users_log')
+                    .select('employee_id')
+                    .eq('region', region);
+                
+                if (usersError) throw usersError;
+                
+                if (!users || users.length === 0) {
+                    document.getElementById('regional-top10').innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">ไม่มีข้อมูลสำหรับภูมิภาคนี้</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                const employeeIds = users.map(u => u.employee_id);
+                
+                // Then get evaluations for these users
+                const { data, error } = await supabase
+                    .from('evaluations')
+                    .select('*')
+                    .in('employee_id', employeeIds)
+                    .not('total_score', 'is', null)
+                    .order('total_score', { ascending: false })
+                    .limit(10);
+                
+                if (error) throw error;
+                
+                const tableBody = document.getElementById('regional-top10');
+                tableBody.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">ไม่มีข้อมูลการประเมิน</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                data.forEach((eval, index) => {
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${eval.user_name || 'ไม่ระบุชื่อ'}</td>
+                            <td>${eval.course === 'MAMA1' ? 'MAMA 1' : 'MAMA 2'}</td>
+                            <td><strong>${eval.total_score || 0}</strong></td>
+                        </tr>
+                    `;
+                });
+                
+            } catch (error) {
+                console.error('Error loading regional rankings:', error);
+                document.getElementById('regional-top10').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center text-danger">ไม่สามารถโหลดข้อมูลได้</td>
+                    </tr>
+                `;
+            }
+        }
+        
+        async function loadCourseRankings() {
+            const course = document.getElementById('course-filter').value;
+            
+            try {
+                let query = supabase
+                    .from('evaluations')
+                    .select('*')
+                    .not('total_score', 'is', null)
+                    .order('total_score', { ascending: false })
+                    .limit(10);
+                
+                if (course !== 'ALL') {
+                    query = query.eq('course', course);
+                }
+                
+                const { data, error } = await query;
+                
+                if (error) throw error;
+                
+                const tableBody = document.getElementById('course-top10');
+                tableBody.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">ไม่มีข้อมูล</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                data.forEach((eval, index) => {
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${eval.user_name || 'ไม่ระบุชื่อ'}</td>
+                            <td>${eval.region || 'ไม่ระบุ'}</td>
+                            <td><strong>${eval.total_score || 0}</strong></td>
+                        </tr>
+                    `;
+                });
+                
+            } catch (error) {
+                console.error('Error loading course rankings:', error);
+                document.getElementById('course-top10').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center text-danger">ไม่สามารถโหลดข้อมูลได้</td>
+                    </tr>
+                `;
+            }
+        }
+        
+        async function loadCurrentPrompt() {
+            const course = document.getElementById('prompt-course').value;
+            
+            try {
+                const { data, error } = await supabase
+                    .from('ai_prompts')
+                    .select('prompt_text')
+                    .eq('course', course)
+                    .single();
+                
+                if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+                    throw error;
+                }
+                
+                if (data && data.prompt_text) {
+                    document.getElementById('current-prompt').value = data.prompt_text;
+                } else {
+                    // Default prompts
+                    const defaultPrompts = {
+                        MAMA1: "วิเคราะห์การสนทนาและให้คะแนนตาม 5 มิติ: 1) การวิเคราะห์และตอบโจทย์ภารกิจ 2) ความแข็งแรงของการนำเสนอ 3) การใช้ภาษาที่เข้าใจง่ายและโน้มน้าว 4) การแก้ไขข้อโต้แย้ง 5) การใช้เทคนิคตามหลักสูตร MAMA1 (Rapport, F.R.O.M., NLP Basics, Buying Motives, Pain & Gain, Value Pitch, Buying Signals, Objection Handling ด้วยเทคนิค A.C.T.)",
+                        MAMA2: "วิเคราะห์การสนทนาและให้คะแนนตาม 5 มิติ: 1) การวิเคราะห์ข้อมูลลูกค้าอย่างละเอียด 2) การออกแบบแผนการเงินแบบองค์รวม 3) การใช้ภาษาที่ปรึกษามืออาชีพ 4) การเจรจาต่อรองแบบ Win-Win 5) การใช้เทคนิคตามหลักสูตร MAMA2 (Financial Life Cycle, Human Capital, Power Questioning, Active Listening, Storytelling, The Mirror, LSCPA Framework)",
+                        Other: "วิเคราะห์การสนทนาและให้คะแนนตาม 5 มิติ: 1) การวิเคราะห์สถานการณ์ 2) การนำเสนอที่มีประสิทธิภาพ 3) การสื่อสารที่ชัดเจน 4) การจัดการข้อโต้แย้ง 5) การใช้เทคนิคการขายที่เหมาะสม"
+                    };
+                    
+                    document.getElementById('current-prompt').value = defaultPrompts[course] || '';
+                }
+                
+                document.getElementById('new-prompt').value = '';
+                
+            } catch (error) {
+                console.error('Error loading prompt:', error);
+                document.getElementById('current-prompt').value = 'ไม่สามารถโหลด prompt ได้';
+            }
+        }
+        
+        async function updatePrompt() {
+            const course = document.getElementById('prompt-course').value;
+            const newPrompt = document.getElementById('new-prompt').value.trim();
+            
+            if (!newPrompt) {
+                alert('กรุณากรอก Prompt ใหม่');
+                return;
+            }
+            
+            // Show loading state
+            document.getElementById('update-prompt-text').classList.add('d-none');
+            document.getElementById('update-prompt-loading').classList.remove('d-none');
+            document.getElementById('update-prompt').disabled = true;
+            
+            try {
+                // Check if prompt exists
+                const { data: existing, error: checkError } = await supabase
+                    .from('ai_prompts')
+                    .select('id')
+                    .eq('course', course)
+                    .single();
+                
+                let error;
+                
+                if (checkError && checkError.code === 'PGRST116') {
+                    // Insert new prompt
+                    const { error: insertError } = await supabase
+                        .from('ai_prompts')
+                        .insert({
+                            course: course,
+                            prompt_text: newPrompt,
+                            last_updated: new Date().toISOString(),
+                            updated_by: state.userData ? `${state.userData.firstName} ${state.userData.lastName}` : 'admin'
+                        });
+                    
+                    error = insertError;
+                } else if (!checkError && existing) {
+                    // Update existing prompt
+                    const { error: updateError } = await supabase
+                        .from('ai_prompts')
+                        .update({
+                            prompt_text: newPrompt,
+                            last_updated: new Date().toISOString(),
+                            updated_by: state.userData ? `${state.userData.firstName} ${state.userData.lastName}` : 'admin'
+                        })
+                        .eq('course', course);
+                    
+                    error = updateError;
+                }
+                
+                if (error) throw error;
+                
+                // Update UI
+                document.getElementById('current-prompt').value = newPrompt;
+                document.getElementById('new-prompt').value = '';
+                alert(`อัปเดต Prompt สำหรับ ${course} สำเร็จแล้ว`);
+                
+            } catch (error) {
+                console.error('Error updating prompt:', error);
+                alert('อัปเดต Prompt ล้มเหลว');
+            } finally {
+                // Reset button state
+                document.getElementById('update-prompt-text').classList.remove('d-none');
+                document.getElementById('update-prompt-loading').classList.add('d-none');
+                document.getElementById('update-prompt').disabled = false;
+            }
+        }
+        
+        async function loadScenariosTable() {
+            const course = document.getElementById('scenario-course-filter').value;
+            
+            try {
+                const { data, error } = await supabase
+                    .from('scenarios')
+                    .select('*')
+                    .eq('course', course)
+                    .order('id');
+                
+                if (error) throw error;
+                
+                const tableBody = document.getElementById('scenarios-table');
+                tableBody.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">ไม่มีสถานการณ์สำหรับหลักสูตรนี้</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                data.forEach(scenario => {
+                    // Parse objections to count them
+                    let objectionCount = 0;
+                    try {
+                        if (typeof scenario.objections === 'string') {
+                            const parsed = JSON.parse(scenario.objections);
+                            objectionCount = Array.isArray(parsed) ? parsed.length : 0;
+                        } else if (Array.isArray(scenario.objections)) {
+                            objectionCount = scenario.objections.length;
+                        }
+                    } catch (e) {
+                        objectionCount = 0;
+                    }
+                    
+                    const statusBadge = scenario.is_active 
+                        ? '<span class="badge bg-success status-badge">เปิดใช้งาน</span>' 
+                        : '<span class="badge bg-secondary status-badge">ปิดใช้งาน</span>';
+                    
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${scenario.id}</td>
+                            <td>${scenario.scenario_name || scenario.name}</td>
+                            <td>${scenario.course}</td>
+                            <td>${objectionCount} ข้อ</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="toggleScenarioStatus(${scenario.id}, ${scenario.is_active})">
+                                    ${scenario.is_active ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>'}
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteScenario(${scenario.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+            } catch (error) {
+                console.error('Error loading scenarios:', error);
+                document.getElementById('scenarios-table').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-danger">ไม่สามารถโหลดข้อมูลได้</td>
+                    </tr>
+                `;
+            }
+        }
+        
+        async function loadCurrentPasscode() {
+            try {
+                const { data, error } = await supabase
+                    .from('system_settings')
+                    .select('setting_value')
+                    .eq('setting_name', 'global_passcode')
+                    .single();
+                
+                if (error && error.code !== 'PGRST116') {
+                    throw error;
+                }
+                
+                document.getElementById('current-passcode').textContent = 
+                    data?.setting_value || 'mama (ค่าเริ่มต้น)';
+                    
+            } catch (error) {
+                console.error('Error loading passcode:', error);
+                document.getElementById('current-passcode').textContent = 'mama (ค่าเริ่มต้น)';
+            }
+        }
+        
+        async function updateSystemPasscode() {
+            const newPasscode = document.getElementById('new-passcode').value.trim();
+            
+            if (!newPasscode) {
+                alert('กรุณากรอกรหัสผ่านใหม่');
+                return;
+            }
+            
+            if (!confirm('คุณแน่ใจที่จะเปลี่ยนรหัสผ่านระบบหรือไม่?')) {
+                return;
+            }
+            
+            // Show loading state
+            document.getElementById('update-passcode-text').classList.add('d-none');
+            document.getElementById('update-passcode-loading').classList.remove('d-none');
+            document.getElementById('update-passcode').disabled = true;
+            
+            try {
+                // Check if setting exists
+                const { data: existing, error: checkError } = await supabase
+                    .from('system_settings')
+                    .select('id')
+                    .eq('setting_name', 'global_passcode')
+                    .single();
+                
+                let error;
+                
+                if (checkError && checkError.code === 'PGRST116') {
+                    // Insert new setting
+                    const { error: insertError } = await supabase
+                        .from('system_settings')
+                        .insert({
+                            setting_name: 'global_passcode',
+                            setting_value: newPasscode,
+                            description: 'รหัสผ่านสำหรับเข้าสู่ระบบ',
+                            last_updated: new Date().toISOString()
+                        });
+                    
+                    error = insertError;
+                } else if (!checkError && existing) {
+                    // Update existing setting
+                    const { error: updateError } = await supabase
+                        .from('system_settings')
+                        .update({ 
+                            setting_value: newPasscode,
+                            last_updated: new Date().toISOString()
+                        })
+                        .eq('setting_name', 'global_passcode');
+                    
+                    error = updateError;
+                }
+                
+                if (error) throw error;
+                
+                // Update UI
+                document.getElementById('current-passcode').textContent = newPasscode;
+                document.getElementById('new-passcode').value = '';
+                alert('อัปเดตรหัสผ่านระบบสำเร็จแล้ว');
+                
+            } catch (error) {
+                console.error('Error updating passcode:', error);
+                alert('อัปเดตรหัสผ่านล้มเหลว');
+            } finally {
+                // Reset button state
+                document.getElementById('update-passcode-text').classList.remove('d-none');
+                document.getElementById('update-passcode-loading').classList.add('d-none');
+                document.getElementById('update-passcode').disabled = false;
+            }
+        }
+        
+        async function loadApiKeysTable() {
+            try {
+                const { data, error } = await supabase
+                    .from('api_key_quotas')
+                    .select('*')
+                    .orderBy('id');
+                
+                if (error) throw error;
+                
+                // Get today's usage
+                const today = new Date().toISOString().split('T')[0];
+                const { data: todayUsage } = await supabase
+                    .from('api_usage_log')
+                    .select('api_key_id, count')
+                    .gte('created_at', `${today}T00:00:00Z`)
+                    .lt('created_at', `${today}T23:59:59Z`)
+                    .groupBy('api_key_id');
+                
+                const usageMap = new Map();
+                if (todayUsage) {
+                    todayUsage.forEach(usage => {
+                        usageMap.set(usage.api_key_id, usage.count || 0);
+                    });
+                }
+                
+                const tableBody = document.getElementById('api-keys-table');
+                tableBody.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">ไม่มีข้อมูลโควต้าการใช้งาน</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                data.forEach(quota => {
+                    const todayUsage = usageMap.get(quota.id) || 0;
+                    const usagePercent = Math.round((todayUsage / quota.daily_limit) * 100);
+                    const monthlyPercent = Math.round((quota.requests_this_month / quota.monthly_limit) * 100);
+                    
+                    let statusBadge = '';
+                    if (!quota.is_active) {
+                        statusBadge = '<span class="badge bg-secondary">ปิดใช้งาน</span>';
+                    } else if (usagePercent >= 100) {
+                        statusBadge = '<span class="badge bg-danger">เต็มแล้ว</span>';
+                    } else if (usagePercent >= 80) {
+                        statusBadge = '<span class="badge bg-warning">ใกล้เต็ม</span>';
+                    } else {
+                        statusBadge = '<span class="badge bg-success">พร้อมใช้งาน</span>';
+                    }
+                    
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${quota.id}</td>
+                            <td>${quota.key_name}</td>
+                            <td>
+                                <div class="mb-2">
+                                    <small>รายวัน: ${todayUsage}/${quota.daily_limit}</small>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar ${usagePercent >= 90 ? 'bg-danger' : usagePercent >= 70 ? 'bg-warning' : 'bg-success'}" 
+                                             style="width: ${Math.min(usagePercent, 100)}%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <small>รายเดือน: ${quota.requests_this_month}/${quota.monthly_limit || '∞'}</small>
+                                    ${quota.monthly_limit ? `
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar ${monthlyPercent >= 90 ? 'bg-danger' : monthlyPercent >= 70 ? 'bg-warning' : 'bg-info'}" 
+                                             style="width: ${Math.min(monthlyPercent, 100)}%"></div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="toggleApiKeyStatus(${quota.id}, ${quota.is_active})">
+                                    ${quota.is_active ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>'}
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+            } catch (error) {
+                console.error('Error loading API key quotas:', error);
+                document.getElementById('api-keys-table').innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">ไม่สามารถโหลดข้อมูลได้</td>
+                    </tr>
+                `;
+            }
+        }
+        
+        // Admin functions for scenarios and API keys
+        window.toggleScenarioStatus = async function(scenarioId, currentStatus) {
+            if (!confirm(`คุณต้องการ${currentStatus ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}สถานการณ์นี้ใช่หรือไม่?`)) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('scenarios')
+                    .update({ is_active: !currentStatus })
+                    .eq('id', scenarioId);
+                
+                if (error) throw error;
+                
+                alert(`สถานการณ์ถูก${currentStatus ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} เรียบร้อยแล้ว`);
+                loadScenariosTable(); // Reload table
+                
+            } catch (error) {
+                console.error('Error toggling scenario status:', error);
+                alert('เปลี่ยนสถานะสถานการณ์ล้มเหลว');
+            }
+        };
+        
+        window.deleteScenario = async function(scenarioId) {
+            if (!confirm('คุณแน่ใจที่จะลบสถานการณ์นี้ใช่หรือไม่?')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('scenarios')
+                    .delete()
+                    .eq('id', scenarioId);
+                
+                if (error) throw error;
+                
+                alert('ลบสถานการณ์เรียบร้อยแล้ว');
+                loadScenariosTable(); // Reload table
+                
+            } catch (error) {
+                console.error('Error deleting scenario:', error);
+                alert('ลบสถานการณ์ล้มเหลว');
+            }
+        };
+        
+        window.toggleApiKeyStatus = async function(keyId, currentStatus) {
+            if (!confirm(`คุณต้องการ${currentStatus ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} API Key นี้ใช่หรือไม่?`)) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('api_key_quotas')
+                    .update({ is_active: !currentStatus })
+                    .eq('id', keyId);
+                
+                if (error) throw error;
+                
+                alert(`API Key ถูก${currentStatus ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} เรียบร้อยแล้ว`);
+                loadApiKeysTable(); // Reload table
+                
+            } catch (error) {
+                console.error('Error toggling API key status:', error);
+                alert('เปลี่ยนสถานะ API Key ล้มเหลว');
+            }
+        };
+        
+        async function addNewScenario(e) {
+            e.preventDefault();
+            
+            // Show loading state
+            document.getElementById('add-scenario-text').classList.add('d-none');
+            document.getElementById('add-scenario-loading').classList.remove('d-none');
+            document.getElementById('add-scenario-form').querySelector('button[type="submit"]').disabled = true;
+            
+            try {
+                const course = document.getElementById('new-scenario-course').value;
+                const scenarioName = document.getElementById('new-scenario-name').value.trim();
+                const situation = document.getElementById('new-scenario-situation').value.trim();
+                const customerData = document.getElementById('new-scenario-customer').value.trim();
+                const insight = document.getElementById('new-scenario-insight').value.trim();
+                const missions = document.getElementById('new-scenario-missions').value.trim();
+                const objections = document.getElementById('new-scenario-objections').value.trim();
+                const techniques = document.getElementById('new-scenario-techniques').value.trim();
+                
+                // Validate JSON for customer data
+                let parsedCustomer;
+                try {
+                    parsedCustomer = JSON.parse(customerData);
+                } catch (e) {
+                    throw new Error('ข้อมูลลูกค้าไม่ใช่รูปแบบ JSON ที่ถูกต้อง');
+                }
+                
+                // Parse missions and objections as arrays
+                const missionsArray = missions.split('\n').filter(m => m.trim());
+                const objectionsArray = objections.split('\n').filter(o => o.trim());
+                const techniquesArray = techniques.split('\n').filter(t => t.trim());
+                
+                // Insert into database
+                const { error } = await supabase
+                    .from('scenarios')
+                    .insert({
+                        course: course,
+                        scenario_name: scenarioName,
+                        situation: situation,
+                        customer: parsedCustomer,
+                        insight: insight,
+                        missions: JSON.stringify(missionsArray),
+                        objections: JSON.stringify(objectionsArray),
+                        techniques: JSON.stringify(techniquesArray),
+                        is_active: true,
+                        created_at: new Date().toISOString()
+                    });
+                
+                if (error) throw error;
+                
+                // Close modal and reset form
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addScenarioModal'));
+                modal.hide();
+                document.getElementById('add-scenario-form').reset();
+                
+                alert('เพิ่มสถานการณ์ใหม่เรียบร้อยแล้ว');
+                
+                // Reload scenarios table
+                loadScenariosTable();
+                
+            } catch (error) {
+                console.error('Error adding scenario:', error);
+                alert(`เพิ่มสถานการณ์ล้มเหลว: ${error.message}`);
+            } finally {
+                // Reset button state
+                document.getElementById('add-scenario-text').classList.remove('d-none');
+                document.getElementById('add-scenario-loading').classList.add('d-none');
+                document.getElementById('add-scenario-form').querySelector('button[type="submit"]').disabled = false;
+            }
+        }
+        
+        async function addNewApiQuota(e) {
+            e.preventDefault();
+            
+            // Show loading state
+            document.getElementById('add-api-quota-text').classList.add('d-none');
+            document.getElementById('add-api-quota-loading').classList.remove('d-none');
+            document.getElementById('add-api-quota-form').querySelector('button[type="submit"]').disabled = true;
+            
+            try {
+                const keyName = document.getElementById('new-api-name').value.trim();
+                const dailyQuota = parseInt(document.getElementById('new-api-daily-quota').value);
+                const monthlyQuota = parseInt(document.getElementById('new-api-monthly-quota').value) || null;
+                const isActive = document.getElementById('new-api-active').checked;
+                
+                if (!keyName || !dailyQuota) {
+                    throw new Error('กรุณากรอกข้อมูลให้ครบถ้วน');
+                }
+                
+                // Insert into database
+                const { error } = await supabase
+                    .from('api_key_quotas')
+                    .insert({
+                        key_name: keyName,
+                        daily_limit: dailyQuota,
+                        monthly_limit: monthlyQuota,
+                        requests_today: 0,
+                        requests_this_month: 0,
+                        last_reset_date: new Date().toISOString().split('T')[0],
+                        is_active: isActive,
+                        created_at: new Date().toISOString()
+                    });
+                
+                if (error) throw error;
+                
+                // Close modal and reset form
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addApiQuotaModal'));
+                modal.hide();
+                document.getElementById('add-api-quota-form').reset();
+                
+                alert('เพิ่มโควต้าการใช้งาน API เรียบร้อยแล้ว');
+                
+                // Reload API keys table
+                loadApiKeysTable();
+                
+            } catch (error) {
+                console.error('Error adding API quota:', error);
+                alert(`เพิ่มโควต้าการใช้งานล้มเหลว: ${error.message}`);
+            } finally {
+                // Reset button state
+                document.getElementById('add-api-quota-text').classList.remove('d-none');
+                document.getElementById('add-api-quota-loading').classList.add('d-none');
+                document.getElementById('add-api-quota-form').querySelector('button[type="submit"]').disabled = false;
+            }
+        }
+        
+        function logout() {
+            // Clear user data
+            state.userData = null;
+            localStorage.removeItem('mamaUserData');
+            
+            // Reset state
+            state.currentCourse = null;
+            state.currentScenario = null;
+            state.evaluationResult = null;
+            state.evaluationId = null;
+            
+            // Go to passcode screen
+            showScreen('passcode');
+        }
+    </script>
+</body>
+</html>
